@@ -128,12 +128,12 @@ u32 TIM5CH1_CAPTURE_VAL2;
 
 int count=0;
 int count1=0;
-int capture_number=0;
-int capture;
-int capture_ave;
-int capture_sum;
-int i;
+int capture_number = 0;
+u32 capture;
+int capture_ave = 0;
+int capture_sum = 0;
 
+int i = 0;
 
 
 #define N 300
@@ -141,7 +141,8 @@ int i;
 //定时器 5 中断服务程序
 void TIM5_IRQHandler(void)
 {	
-	int capture_sum;
+	
+//	int capture_sum;
 //	static long a[N];	
 //	static long b[N];
 //	int min1,max1;
@@ -151,42 +152,30 @@ void TIM5_IRQHandler(void)
 //	TIM_SetCounter(TIM5,0);
 //	while(1)																				// 将此处while里的count改成个计数时间
 //	{
-			if( TIM_GetITStatus(TIM5, TIM_IT_CC1) ==SET)//处理第一次捕获中断
+		if( TIM_GetITStatus(TIM5, TIM_IT_CC1) == SET)//处理第一次捕获中断
+		{
+																		//用来查看中断次数
+			TIM_ClearITPendingBit(TIM5, TIM_IT_CC1); //清除中断标志位}
+			if(capture_number==0) 
 			{
-				i++;															//用来查看中断次数
-				TIM_ClearITPendingBit(TIM5, TIM_IT_CC1); //清除中断标志位}
-				if(capture_number==0) 
-				{
-					capture_number=1;
-					TIM5CH1_CAPTURE_VAL1=TIM_GetCapture1(TIM5);//获取当前的捕获值.
-				}
-				else if (capture_number==1)						//处理第二次捕获中断
-				{
-					capture_number=0;
-					TIM5CH1_CAPTURE_VAL2=TIM_GetCapture1(TIM5);
-					if(TIM5CH1_CAPTURE_VAL2>TIM5CH1_CAPTURE_VAL1)
-					{
-						capture = TIM5CH1_CAPTURE_VAL2-TIM5CH1_CAPTURE_VAL1;
-					}
-					else if(TIM5CH1_CAPTURE_VAL2<TIM5CH1_CAPTURE_VAL1)
-						capture=((0xFFFFFFFF-TIM5CH1_CAPTURE_VAL1)+TIM5CH1_CAPTURE_VAL2);
-					else
-						capture=0;	
-			
-				} 
+				capture_number=1;
+				TIM5CH1_CAPTURE_VAL1=TIM_GetCapture1(TIM5);//获取当前的捕获值.
 			}
-//		for(i=0;i<4;i++)
-//		{
-//			capture_sum=capture_sum+capture;
-//			capture_ave=capture_sum/4;
-//		}
+			else if (capture_number==1)						//处理第二次捕获中断
+			{
+				capture_number=0;
+				TIM5CH1_CAPTURE_VAL2=TIM_GetCapture1(TIM5);
+				if(TIM5CH1_CAPTURE_VAL2>TIM5CH1_CAPTURE_VAL1)
+				{
+					capture = TIM5CH1_CAPTURE_VAL2-TIM5CH1_CAPTURE_VAL1;
+				}
+				else if(TIM5CH1_CAPTURE_VAL2<TIM5CH1_CAPTURE_VAL1)
+					capture=((840000-TIM5CH1_CAPTURE_VAL1)+TIM5CH1_CAPTURE_VAL2);
+				else
+					capture=1000000;	
+			} 
+		}
 
+		
 	TIM_ClearITPendingBit(TIM5, TIM_IT_CC1|TIM_IT_Update);   //后期添加的清除中断标志位,实验证明有必要要这一句	
 	}
-
-
-
-
-
-
-
