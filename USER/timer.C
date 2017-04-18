@@ -132,6 +132,7 @@ int capture_number = 0;
 u32 capture;
 int capture_ave = 0;
 int capture_sum = 0;
+int A = 5;
 
 int i = 0;
 
@@ -156,23 +157,24 @@ void TIM5_IRQHandler(void)
 		{
 																		//用来查看中断次数
 			TIM_ClearITPendingBit(TIM5, TIM_IT_CC1); //清除中断标志位}
-			if(capture_number==0) 
-			{
-				capture_number=1;
+			if(capture_number<A) 
+			{				
+				if(capture_number==0)
 				TIM5CH1_CAPTURE_VAL1=TIM_GetCapture1(TIM5);//获取当前的捕获值.
+				capture_number++;
 			}
-			else if (capture_number==1)						//处理第二次捕获中断
+			else if (capture_number==A)						//处理第二次捕获中断
 			{
 				capture_number=0;
 				TIM5CH1_CAPTURE_VAL2=TIM_GetCapture1(TIM5);
 				if(TIM5CH1_CAPTURE_VAL2>TIM5CH1_CAPTURE_VAL1)
 				{
-					capture = TIM5CH1_CAPTURE_VAL2-TIM5CH1_CAPTURE_VAL1;
+					capture = (TIM5CH1_CAPTURE_VAL2-TIM5CH1_CAPTURE_VAL1) ;
 				}
 				else if(TIM5CH1_CAPTURE_VAL2<TIM5CH1_CAPTURE_VAL1)
-					capture=((840000-TIM5CH1_CAPTURE_VAL1)+TIM5CH1_CAPTURE_VAL2);
+					capture=((0xFFFFFFFF-TIM5CH1_CAPTURE_VAL1)+TIM5CH1_CAPTURE_VAL2) ;
 				else
-					capture=1000000;	
+					capture=0;	
 			} 
 		}
 

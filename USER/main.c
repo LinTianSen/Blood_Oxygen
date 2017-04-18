@@ -10,6 +10,7 @@
 
 #define M 10		//数组大小
 #define N 9			//均值滤波的取样个数
+#define B 10000      //数组
 
 //#define O 100
 
@@ -22,19 +23,21 @@ double max660;	//660nm波长的投射光强最大频率
 double min660;	//660nm波长的投射光强最小频率
 double max940;	//940nm波长的投射光强最大频率
 double min940;	//940nm波长的投射光强最小频率
+
 extern u32 capture;
 extern int capture_ave;
 extern int capture_sum;
 extern int capture_number;
-
+extern int A ;
 
 int num660=0;							    //算光极值的函数用到的变量	
 int num940=0;							    //算光极值的函数用到的变量	
-uint32_t red[M];							//平均滤波后的1s内的红光频率
-uint32_t ired[M];							//平均滤波后的1s内的红外光频率
+uint32_t red[B];							//收集红光capture
+uint32_t ired[B];							//收集红外光capture
 uint32_t red_data[N];						//初次通过区分频率获得的红光数组
 uint32_t ired_data[N];						//初次通过区分频率获得的红外光数组
 
+unsigned int capture_num[M];				//用于捕获平均
 
 uint32_t min;								//寻找最值函数时用到的变量
 uint32_t max;								//寻找最值函数时用到的变量
@@ -53,8 +56,9 @@ void TIM13_PWM_Init(u32 arr2,u32 psc2);
 void TIM14_PWM_Init(u32 arr2,u32 psc2);		//PWM脉冲声明
 unsigned int Filter(uint32_t *pData);       //中位值平均滤波声明
 unsigned int Extreme(uint32_t *extreme_num);	//极值声明
-	
-int a;
+
+	int a ;
+
 int main(void)
 { 
 
@@ -64,14 +68,14 @@ int main(void)
 	int last_y1 = 0;							//画线变量
 	int last_y2 = 0;
 	/***************************接收变量***********************************************************************************/
-
+	unsigned int capture_data;					//capture平均值
 	
 	
 	
 	/***************************PWM变量************************************************************************************/
-	u16 arr=50;
+	u16 arr=400;
 	u16 psc=4200;
-	u16 pwmval=arr*0.5;    //0.25是75%占空比
+	u16 pwmval=arr*0.75;    //0.75是25%占空比
 
 	
 	
@@ -84,45 +88,90 @@ int main(void)
 	//TIMER_Initializes();	 		    		 //初始化tim
 	LED_Init();		    						  //初始化LED
  	LCD_Init();          						 //初始化LCD FSMC接口
-	//POINT_COLOR=RED;   	 	 						//画笔颜色：红色
 	LCD_Clear(WHITE);								
 	
 	
 	/**************************输出和捕获***********************************************************************************/
-	TIM14_PWM_Init(arr-1,psc-1);			//84M/4200=20000Hz的计数频率,重装载值50，所以PWM频率为 20000/50=400hz.
+	TIM14_PWM_Init(arr-1,psc-1);			//84M/4200=20000Hz的计数频率,重装载值50，所以PWM频率为 20000/400=50hz.
 	TIM_SetCompare1(TIM14,pwmval);			//修改占空比
-	delay_us(1250);							//延时是为了调整两个方波的时序
+	//delay_ms(500);
+	delay_ms(15);							//延时是为了调整两个方波的时序
 	TIM13_PWM_Init(arr-1,psc-1);		
-	TIM_SetCompare1(TIM13,pwmval);	
+	TIM_SetCompare1(TIM13,arr*0.25);	
 	
-	TIM5_CH1_Cap_Init(840000-1, 0); 	// 不分频  以84M/84000=1000Hz
+	TIM5_CH1_Cap_Init(0xFFFFFFFF, 0); 	// 不分频 420000在timer函数里也用到了 以84M/420000=200Hz
+	
 	
 
   	while(1) 
 	{
-		if( TIM_GetFlagStatus(TIM5,TIM_FLAG_Update)==SET )		//TIM 标志位是否溢出更新  (如果计时器溢出重新计数，则输出)
+		if(m == 0)
 		{
-			
-			frequency = (unsigned int)SystemCoreClock / 2  / capture ;
-			TIM_ClearFlag(TIM5,TIM_FLAG_Update);				//TIM 标志位清零
-			
-			if (frequency>45000||frequency<2)
-			point_red = frequency ;
-			POINT_COLOR = RED ;
-			LCD_DrawLine( x1 , last_y1 / 20 , x1 + 5 , point_red /20 );
-			last_y1 = point_red ;
-			x1 = x1 + 5;
-			delay_us( 1 ) ;
-			LCD_ShowxNum(260,5,point_red,5,24,0);	
-			if ( x1 == 320 )							//超出屏幕，就清零
-			{
-				x1 = 0;
-			    LCD_Clear(WHITE);								//背景色
-			}	
+			m=0;
+			if(GPIO_ReadInputDataBit(GPIOF , GPIO_Pin_9)==1 && GPIO_ReadInputDataBit(GPIOF , GPIO_Pin_8)==0 	)
+				{
+					delay_ms(3);
+					point_red =  SystemCoreClock / 2  / capture * A ;
+					POINT_COLOR = RED ;
+					LCD_DrawLine( x1 , last_y1 / 20 , x1 + 1 , point_red /20 );
+					last_y1 = point_red ;
+					x1 = x1 + 1;
+					delay_us( 1 ) ;
+					LCD_ShowxNum(260,5,point_red,5,24,0);	
+					
+					m=1;
+				}
 		}
+		if(m == 1)
+		{
+			m=1;
+			if(GPIO_ReadInputDataBit(GPIOF , GPIO_Pin_8)==1 && GPIO_ReadInputDataBit(GPIOF , GPIO_Pin_9)==0 	)
+				{
+					delay_ms(11);
+					point_ired =  SystemCoreClock / 2  / capture * A ;
+					 
+					POINT_COLOR = BLACK ;
+					LCD_DrawLine( x2 , last_y2 / 5 , x2 + 1 , point_ired / 5 );
+					last_y2 = point_ired ;
+					x2 = x2 + 1;
+					delay_us( 1 ) ;
+					LCD_ShowxNum(260,25,point_ired,5,24,0);	
+					m=0;
+			}
+		}
+		if ( x1 > 320 || x2 > 320)							//超出屏幕，就清零
+					{
+						x1 = 0;
+						x2 = 0;
+						LCD_Clear(WHITE);								//背景色
+					}	
+		
+			
+			
+//		if( TIM_GetFlagStatus(TIM5,TIM_FLAG_Update)==SET )		//TIM 标志位是否溢出更新  (如果计时器溢出重新计数，则输出)
+//		{
+//			
+//			frequency = ( SystemCoreClock / 2  / capture) * 20 ;
+//			TIM_ClearFlag(TIM5,TIM_FLAG_Update);				//TIM 标志位清零
+//			
+//			point_red = frequency ;
+//			POINT_COLOR = RED ;
+//			LCD_DrawLine( x1 , last_y1 / 20 , x1 + 3 , point_red /20 );
+//			last_y1 = point_red ;
+//			x1 = x1 + 3;
+//			delay_us( 1 ) ;
+//			LCD_ShowxNum(260,5,point_red,5,24,0);	
+//			if ( x1 > 320 )							//超出屏幕，就清零
+//			{
+//				x1 = 0;
+//			    LCD_Clear(WHITE);								//背景色
+//			}	
+//		}
 	}
 }
 		
+
+
 //		/*********  画线部分  *******************************************************************/
 //		if( m == N || k == N)									
 //		{
